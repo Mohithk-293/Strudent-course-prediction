@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Course Prediction</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-image: url("{{ url_for('static', filename='img/graduate.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            /* position: relative;s */
+            color: #fff;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            color: #007bff;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0;
+            color: #333;
+            text-align: left;
+        }
+
+        input, select {
+            padding: 10px;
+            margin-bottom: 20px;
+            width: calc(100% - 20px);
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        .xyz {
+            padding: 12px 30px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        .xyz:hover {
+            background-color: #0056b3;
+        }
+
+        #prediction-result {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .logo {
+            text-align: center;
+            margin-top: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo img {
+            height: 100px;
+        }
+
+        /* Modal popup styles */
+        #resultContainer {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.85); /* Dark semi-transparent background */
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            color: #fff;
+        }
+
+        #predictedCourses {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #predictedCourses li {
+            background-color: rgba(255, 255, 255, 0.2); /* Light transparent */
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        /* Close button styling */
+        .close-btn {
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .close-btn:hover {
+            background-color: #cc0000;
+        }
+
+        /* Darken the background when popup is visible */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 5;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">
+        <img src="{{ url_for('static', filename='img/ja.png') }}" alt="Logo">
+    </div>
+
+    <div class="container">
+        <h1>Student Course Prediction</h1>
+        <form id="predict-form">
+            <label for="rank">Enter Your Rank:</label>
+            <input type="number" id="rank" name="rank" required>
+
+            <label for="category">Select Category:</label>
+            <select id="category" name="category" required>
+                <option value="">Select Category</option>
+                <option value="0">GM</option>
+                <option value="1">OBC</option>
+                <option value="2">SC/ST</option>
+            </select>
+            <input class="xyz" type="button" value="PREDICT" onclick="submitForm()">
+        </form>
+    </div>
+
+    <!-- Popup container for predicted courses -->
+    <div id="resultContainer">
+        <h3>Predicted Courses:</h3>
+        <ul id="predictedCourses"></ul>
+        <button class="close-btn" onclick="closePopup()">Close</button>
+    </div>
+
+    <!-- Overlay for the popup -->
+    <div class="overlay" id="overlay"></div>
+
+    <script>
+        function submitForm() {
+            var rank = document.getElementById("rank").value;
+            var category = document.getElementById("category").value;
+            var url = "http://127.0.0.1:53020/predict"; // Replace this with your Flask app's URL
+
+            // Create a new form data object
+            var formData = new FormData();
+            formData.append("rank", rank);
+            formData.append("category", category);
+
+            // Create a new XMLHttpRequest object
+            var xhr = new XMLHttpRequest();
+
+            // Configure the POST request to the Flask app
+            xhr.open("POST", url);
+
+            // Set the callback function to handle the response from the Flask app
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    console.log("Request successful!");
+                    var response = JSON.parse(xhr.responseText);
+                    displayResults(response);
+                } else {
+                    console.log("Request failed!");
+                }
+            };
+
+            // Send the POST request with the form data
+            xhr.send(formData);
+        }
+
+        function displayResults(courses) {
+            var resultContainer = document.getElementById("resultContainer");
+            var predictedCoursesList = document.getElementById("predictedCourses");
+            var overlay = document.getElementById("overlay");
+
+            // Clear any previous results
+            predictedCoursesList.innerHTML = "";
+
+            // Check if courses is defined and it's an array before proceeding
+            if (Array.isArray(courses)) {
+                courses.forEach(function (course) {
+                    var listItem = document.createElement("li");
+                    listItem.textContent = course;
+                    predictedCoursesList.appendChild(listItem);
+                });
+
+                // Show the popup and overlay
+                resultContainer.style.display = "block";
+                overlay.style.display = "block";
+            } else {
+                predictedCoursesList.innerHTML = "No courses found.";
+                resultContainer.style.display = "block";
+                overlay.style.display = "block";
+            }
+        }
+
+        // Function to close the popup
+        function closePopup() {
+            document.getElementById("resultContainer").style.display = "none";
+            document.getElementById("overlay").style.display = "none";
+        }
+    </script>
+</body>
+</html>
